@@ -5,16 +5,20 @@ services:
       POSTGRES_DB: agro
       POSTGRES_USER: agro
       POSTGRES_PASSWORD: agro
-    ports:
-      - "5432:5432"
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agro -d agro"]
+      interval: 5s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:4-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    ports: ["5672:5672", "15672:15672"]
 
   redis:
     image: redis:7
-    ports:
-      - "6379:6379"
+    ports: ["6379:6379"]
+
+volumes:
+  pgdata:

@@ -26,6 +26,11 @@ dependencyManagement {
     }
 }
 
+val shedlockVersion = "7.10.1"   // ветка 7.x — под Spring Framework 7 / Boot 4
+val bucket4jVersion = "8.21.0"
+val archunitVersion = "1.5.1"
+val mapstructVersion = "1.6.2"
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-amqp")
@@ -37,6 +42,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("net.logstash.logback:logstash-logback-encoder:8.0")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("org.springframework.modulith:spring-modulith-starter-jpa")
@@ -44,6 +50,8 @@ dependencies {
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
     runtimeOnly("org.springframework.modulith:spring-modulith-observability")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
+    implementation("org.mapstruct:mapstruct:$mapstructVersion")
+    annotationProcessor("org.mapstruct:mapstruct-processor:$mapstructVersion")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -63,8 +71,24 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers-rabbitmq")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    implementation("net.javacrumbs.shedlock:shedlock-spring:$shedlockVersion")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:$shedlockVersion")
+
+    implementation("com.bucket4j:bucket4j_jdk17-core:$bucket4jVersion")
+    implementation("com.bucket4j:bucket4j_jdk17-lettuce:$bucket4jVersion")   // Redis через Lettuce, как в Boot
+
+    testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(listOf(
+        "-Amapstruct.defaultComponentModel=spring",
+        "-Amapstruct.unmappedTargetPolicy=ERROR"
+    ))
 }

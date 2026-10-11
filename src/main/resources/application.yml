@@ -1,0 +1,21 @@
+spring:
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations:
+      - classpath:db/migration/common
+      - classpath:db/migration/reference
+      - classpath:db/migration/identity
+      - classpath:db/migration/profile
+      - classpath:db/migration/audit
+      - classpath:db/migration/catalog
+      - classpath:db/migration/media
+      - classpath:db/migration/ordering
+      - classpath:db/migration/delivery
+      - classpath:db/migration/notification
+      - classpath:db/migration/chat
+      - classpath:db/migration/analytics
+      - classpath:db/migration/weather
+      - classpath:db/migration/integration
+      - classpath:db/migration/soil
+      - classpath:db/migration/ai

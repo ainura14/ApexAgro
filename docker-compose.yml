@@ -1,24 +1,66 @@
 services:
   postgres:
-    image: postgres:17
+    image: postgres:16-alpine
+    container_name: apexagro-postgres
     environment:
-      POSTGRES_DB: agro
-      POSTGRES_USER: agro
-      POSTGRES_PASSWORD: agro
-    ports: ["5432:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+      POSTGRES_DB: apexagro
+      POSTGRES_USER: apexagro
+      POSTGRES_PASSWORD: apexagro
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agro -d agro"]
+      test: ["CMD-SHELL", "pg_isready -U apexagro -d apexagro"]
       interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: apexagro-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:4-management
-    ports: ["5672:5672", "15672:15672"]
+    image: rabbitmq:3.13-management-alpine
+    container_name: apexagro-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: apexagro
+      RABBITMQ_DEFAULT_PASS: apexagro
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-  redis:
-    image: redis:7
-    ports: ["6379:6379"]
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: apexagro-minio
+    user: "0:0"
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: apexagro
+      MINIO_ROOT_PASSWORD: apexagro123
+    ports:
+      - "9000:9000"
+    volumes:
+      - minio_data:/data
 
 volumes:
-  pgdata:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:

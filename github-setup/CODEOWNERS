@@ -1,0 +1,17 @@
+# BE3-14: зоны ответственности для ревью. Замените @Su3r3n и TODO-команды на реальные GitHub-ники/команды.
+# Требование ревью CODEOWNERS включается в Settings → Branches → main → "Require review from Code Owners".
+
+*                                   @Su3r3n
+
+# Зона «нужен тимлид»: общий каркас, миграции, сборка, CI, архитектурные тесты
+/src/main/java/com/apexagro/common/ @Su3r3n
+/src/main/resources/db/migration/   @Su3r3n
+/src/main/resources/application*.yml @Su3r3n
+/src/test/java/com/apexagro/architecture/ @Su3r3n
+/build.gradle.kts                   @Su3r3n
+/docker-compose.yml                 @Su3r3n
+/.github/                           @Su3r3n
+/docs/adr/                          @Su3r3n
+
+# Контракты API: фронтенд + владелец модуля (TODO: добавить @<fe-lead> и владельцев модулей)
+/api/                               @Su3r3n

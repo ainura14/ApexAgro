@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BE3-05: логирование.
+  dev / тесты — читаемый текст с correlationId; stage / prod — JSON (logstash encoder) для Loki.
+  Телефон и ПИН маскируются в обоих вариантах (PiiMasker).
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="agro-backend"/>
+
+    <conversionRule conversionWord="maskedMsg" converterClass="com.apexagro.common.logging.PiiMaskingConverter"/>
+
+    <springProfile name="stage | prod">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${APP_NAME}"}</customFields>
+                <includeMdcKeyName>correlationId</includeMdcKeyName>
+                <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>30</maxDepthPerThrowable>
+                    <rootCauseFirst>true</rootCauseFirst>
+                </throwableConverter>
+                <jsonGeneratorDecorator class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
+                    <valueMasker class="com.apexagro.common.logging.PiiValueMasker"/>
+                </jsonGeneratorDecorator>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!(stage | prod)">
+        <property name="CONSOLE_PATTERN"
+                  value="%clr(%d{HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%X{correlationId:-}]){magenta} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %maskedMsg%n%wEx"/>
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>${CONSOLE_PATTERN}</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.apexagro" level="DEBUG"/>
+    </springProfile>
+</configuration>

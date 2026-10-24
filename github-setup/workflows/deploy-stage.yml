@@ -1,0 +1,70 @@
+# Автодеплой на stage (QA-01): после зелёного CI на main собирает образ, кладёт в GHCR и обновляет сервер.
+# Секреты репозитория (Settings → Secrets and variables → Actions):
+#   STAGE_HOST     — IP или домен сервера
+#   STAGE_USER     — пользователь SSH (в группе docker)
+#   STAGE_SSH_KEY  — приватный ключ SSH (публичный — в ~/.ssh/authorized_keys на сервере)
+#   STAGE_DOMAIN   — домен stage (для проверки health), например stage.example.kg
+name: deploy-stage
+
+on:
+  workflow_run:
+    workflows: [ ci ]
+    types: [ completed ]
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-stage
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Image name
+        id: img
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.img.outputs.name }}:stage
+            ${{ steps.img.outputs.name }}:${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGE_HOST }}
+          username: ${{ secrets.STAGE_USER }}
+          key: ${{ secrets.STAGE_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/apexagro
+            docker compose -f docker-compose.stage.yml --env-file .env pull app
+            docker compose -f docker-compose.stage.yml --env-file .env up -d app nginx
+            docker image prune -f
+
+      - name: Health check (критерий S0 — health OK на stage)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "https://${{ secrets.STAGE_DOMAIN }}/actuator/health/readiness"; then echo; echo "stage UP"; exit 0; fi
+            sleep 10
+          done
+          echo "stage не поднялся за 5 минут"; exit 1

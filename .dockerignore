@@ -1,0 +1,8 @@
+.git
+.gradle
+.idea
+build
+github-setup
+deploy
+docs
+*.md

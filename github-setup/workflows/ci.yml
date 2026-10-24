@@ -1,0 +1,60 @@
+# CI бэкенда (QA-02 владеет пайплайном; это базовая версия от BE3).
+# Валит сборку: тесты (включая границы модулей, миграции на пустой БД, контракты API), openapi-diff.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Testcontainers сам поднимает PostgreSQL, Redis и RabbitMQ (Docker есть на ubuntu-latest)
+      - name: Build and test
+        run: ./gradlew build --no-daemon
+
+      - name: Test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/test
+
+      # Глубокое сравнение схем: код не должен ломать контракт api/<module>.yaml (несовместимые изменения валят CI)
+      - name: OpenAPI diff
+        run: |
+          shopt -s nullglob
+          for spec in api/*.yaml; do
+            module=$(basename "$spec" .yaml)
+            [[ "$module" == _* ]] && continue
+            echo "== $module"
+            docker run --rm -v "$PWD:/w" openapitools/openapi-diff:latest \
+              "/w/$spec" "/w/build/openapi/$module.json" --fail-on-incompatible
+          done
+
+      - name: Generate TypeScript client for FE
+        run: |
+          shopt -s nullglob
+          mkdir -p build/ts-client
+          for spec in api/*.yaml; do
+            module=$(basename "$spec" .yaml)
+            [[ "$module" == _* ]] && continue
+            npx --yes openapi-typescript@7 "$spec" -o "build/ts-client/$module.ts"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ts-client
+          path: build/ts-client
+          if-no-files-found: ignore

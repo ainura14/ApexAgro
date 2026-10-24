@@ -1,21 +1,126 @@
 spring:
+  application:
+    name: agro-backend
+  profiles:
+    default: dev                          # bootRun без флагов = dev
+
+  # BE3-03: миграции лежат в db/migration/<schema>/; Flyway обходит подпапки сам,
+  # поэтому новая схема или миграция добавляется без правки конфига.
+  # Версии V<yyyyMMddHHmm> уникальны во всём проекте, а не только в папке схемы.
   flyway:
     enabled: true
+    locations: classpath:db/migration
+    default-schema: common                # здесь лежит flyway_schema_history
+    create-schemas: true
     baseline-on-migrate: false
-    locations:
-      - classpath:db/migration/common
-      - classpath:db/migration/reference
-      - classpath:db/migration/identity
-      - classpath:db/migration/profile
-      - classpath:db/migration/audit
-      - classpath:db/migration/catalog
-      - classpath:db/migration/media
-      - classpath:db/migration/ordering
-      - classpath:db/migration/delivery
-      - classpath:db/migration/notification
-      - classpath:db/migration/chat
-      - classpath:db/migration/analytics
-      - classpath:db/migration/weather
-      - classpath:db/migration/integration
-      - classpath:db/migration/soil
-      - classpath:db/migration/ai
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate                  # схему меняет только Flyway
+    properties:
+      hibernate.default_schema: common    # event_publication Spring Modulith; сущности модулей указывают schema явно
+      hibernate.jdbc.time_zone: UTC
+
+  # BE3-06: бандлы сообщений; язык по умолчанию — apexagro.i18n.default-language
+  messages:
+    basename: messages/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
+  # BE3-07: даты ISO 8601 в UTC
+  jackson:
+    time-zone: UTC
+
+  mvc:
+    problemdetails:
+      enabled: true                       # BE3-04: ошибки Spring MVC тоже в RFC 7807
+
+  # BE3-09: ретраи обработчиков команд 3× → DLQ (через apexagro.dlx)
+  rabbitmq:
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-retries: 2                  # Boot 4: повторы ПОСЛЕ первой попытки → всего 3 попытки
+          initial-interval: 1s
+          multiplier: 2
+          max-interval: 10s
+
+  modulith:
+    events:
+      republish-outstanding-events-on-restart: true
+      jdbc:
+        schema-initialization:
+          enabled: false                  # таблицу common.event_publication создаёт Flyway
+
+server:
+  shutdown: graceful
+  forward-headers-strategy: framework     # за Nginx: X-Forwarded-*
+
+# BE3-13: health (liveness/readiness), Prometheus
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState, db, redis, rabbit
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true        # p95 для бюджетов производительности (BE3-58)
+
+# BE3-08: OpenAPI. Группа = модуль; спецификация модуля лежит в api/<module>.yaml
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  default-produces-media-type: application/json
+  group-configs:
+    - { group: identity,     packages-to-scan: com.apexagro.identity }
+    - { group: reference,    packages-to-scan: com.apexagro.reference }
+    - { group: profile,      packages-to-scan: com.apexagro.profile }
+    - { group: catalog,      packages-to-scan: com.apexagro.catalog }
+    - { group: media,        packages-to-scan: com.apexagro.media }
+    - { group: ordering,     packages-to-scan: com.apexagro.ordering }
+    - { group: delivery,     packages-to-scan: com.apexagro.delivery }
+    - { group: notification, packages-to-scan: com.apexagro.notification }
+    - { group: chat,         packages-to-scan: com.apexagro.chat }
+    - { group: analytics,    packages-to-scan: com.apexagro.analytics }
+    - { group: weather,      packages-to-scan: com.apexagro.weather }
+    - { group: integration,  packages-to-scan: com.apexagro.integration }
+    - { group: soil,         packages-to-scan: com.apexagro.soil }
+    - { group: ai,           packages-to-scan: com.apexagro.ai }
+
+apexagro:
+  i18n:
+    supported-languages: [ru, ky]
+    default-language: ru                  # PROPOSED, [DECISION REQUIRED] D-26
+
+  # BE3-11: лимиты. Значения PROPOSED — владельцы задач подтверждают.
+  rate-limits:
+    policies:
+      otp-send:    { limit: 3,  window: 10m }   # BE1: отправка OTP на номер
+      otp-verify:  { limit: 5,  window: 10m }   # BE1: попытки ввода кода
+      file-upload: { limit: 30, window: 1m }    # BE2: загрузка файлов на пользователя
+      ai-request:  { limit: 20, window: 1m }    # BE3: запросы к /ai/* на пользователя
+
+  # BE3-10: заглушка SMS (только dev и stage; на prod её нет)
+  sms:
+    stub:
+      log-codes: false
+      fixed-code: "000000"
+      test-numbers: []

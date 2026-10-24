@@ -1,0 +1,21 @@
+# Локальная разработка.
+# Подключения к PostgreSQL, Redis и RabbitMQ берутся из docker-compose.yml автоматически
+# (spring-boot-docker-compose), задавать их здесь не нужно.
+spring:
+  docker:
+    compose:
+      lifecycle-management: start-only   # контейнеры остаются после остановки приложения
+  flyway:
+    # dev-only seed (R__*.sql); в stage/prod не попадает
+    locations: classpath:db/migration, classpath:db/seed/dev
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+apexagro:
+  sms:
+    stub:
+      log-codes: true                    # OTP-код пишется в лог (телефон маскирован)
+      test-numbers: ["+996700000001", "+996700000002"]

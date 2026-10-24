@@ -1,3 +1,5 @@
+# BE3-12: окружение для разработки. Поднимается одной командой: docker compose up -d
+# (или автоматически при ./gradlew bootRun — spring-boot-docker-compose).
 services:
   postgres:
     image: postgres:16-alpine
@@ -6,6 +8,7 @@ services:
       POSTGRES_DB: apexagro
       POSTGRES_USER: apexagro
       POSTGRES_PASSWORD: apexagro
+      TZ: UTC
     ports:
       - "5432:5432"
     volumes:
@@ -37,7 +40,7 @@ services:
       RABBITMQ_DEFAULT_PASS: apexagro
     ports:
       - "5672:5672"
-      - "15672:15672"
+      - "15672:15672"          # http://localhost:15672 (apexagro / apexagro)
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -50,14 +53,27 @@ services:
     image: cgr.dev/chainguard/minio:latest
     container_name: apexagro-minio
     user: "0:0"
-    command: server /data
+    command: server /data --console-address :9001
     environment:
       MINIO_ROOT_USER: apexagro
       MINIO_ROOT_PASSWORD: apexagro123
     ports:
-      - "9000:9000"
+      - "9000:9000"            # S3 API
+      - "9001:9001"            # консоль: http://localhost:9001 (apexagro / apexagro123)
     volumes:
       - minio_data:/data
+
+  # Seed: бакеты MinIO (одноразовый контейнер). Spring Boot его не ждёт и к нему не подключается.
+  minio-init:
+    image: minio/mc:latest
+    container_name: apexagro-minio-init
+    depends_on:
+      - minio
+    volumes:
+      - ./docker/minio/init-buckets.sh:/init-buckets.sh:ro
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    labels:
+      org.springframework.boot.ignore: "true"
 
 volumes:
   postgres_data:

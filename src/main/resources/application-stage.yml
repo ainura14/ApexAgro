@@ -1,0 +1,29 @@
+# Stage. Подключения и секреты — только из переменных окружения (их задаёт DevOps, QA-01).
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:/}
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+
+apexagro:
+  sms:
+    stub:
+      log-codes: false                   # на stage код в лог не пишется
+      # Тестовые номера получают фиксированный код (PROPOSED). Список — через переменную окружения.
+      test-numbers: ${SMS_TEST_NUMBERS:+996700000001,+996700000002}

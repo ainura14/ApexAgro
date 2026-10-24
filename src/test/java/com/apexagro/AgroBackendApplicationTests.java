@@ -1,4 +1,4 @@
-package com.backapi.agro_backend;
+package com.apexagro;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

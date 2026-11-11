@@ -1,0 +1,292 @@
+openapi: 3.0.3
+info:
+  title: Apex Agro - Profile API
+  version: 1.0.0
+paths:
+  /api/v1/me/farms:
+    get:
+      summary: Список хозяйств текущего пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                - id: "11111111-1111-1111-1111-111111111111"
+                  name: "КХ Ала-Тоо"
+                  type: "PEASANT_FARM"
+                  settlementId: "22222222-2222-2222-2222-222222222222"
+    post:
+      summary: Создать хозяйство
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, settlementId]
+              properties:
+                name:
+                  type: string
+                  example: "КХ Ала-Тоо"
+                type:
+                  type: string
+                  enum: [PERSONAL_SUBSIDIARY, PEASANT_FARM, COMPANY]
+                  example: "PEASANT_FARM"
+                settlementId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Создано
+        '400':
+          description: Ошибка валидации
+        '422':
+          description: Населенный пункт не найден (SETTLEMENT_NOT_FOUND)
+
+  /api/v1/me/farms/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Получить хозяйство по ID
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Хозяйство не найдено или чужое
+    patch:
+      summary: Обновить хозяйство
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Хозяйство не найдено
+    delete:
+      summary: Удалить хозяйство (каскадно удаляет связанные поля и посевы)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Удалено
+
+  /api/v1/me/fields:
+    get:
+      summary: Список полей
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: farmId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                - id: "33333333-3333-3333-3333-333333333333"
+                  farmId: "11111111-1111-1111-1111-111111111111"
+                  name: "Северный участок 1"
+                  areaHa: 15.5
+                  settlementId: "22222222-2222-2222-2222-222222222222"
+                  irrigation: "DRIP"
+                  soilType: "Чернозем"
+    post:
+      summary: Добавить поле
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [farmId, name, areaHa, settlementId, irrigation]
+              properties:
+                farmId:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  example: "Поле №1"
+                areaHa:
+                  type: number
+                  format: double
+                  minimum: 0.01
+                  example: 10.5
+                settlementId:
+                  type: string
+                  format: uuid
+                irrigation:
+                  type: string
+                  enum: [RAINFED, FURROW, DRIP, SPRINKLER]
+                  example: "DRIP"
+                soilType:
+                  type: string
+                  example: "Серозём"
+      responses:
+        '201':
+          description: Поле создано
+        '404':
+          description: Ферма не найдена или не принадлежит пользователю
+
+  /api/v1/me/fields/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Получить поле по ID
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Поле не найдено
+    delete:
+      summary: Удалить поле
+      responses:
+        '204':
+          description: Удалено
+
+  /api/v1/me/plantings:
+    get:
+      summary: Список посевов по полям и сезонам
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fieldId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: seasonYear
+          in: query
+          schema:
+            type: integer
+            example: 2026
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                - id: "44444444-4444-4444-4444-444444444444"
+                  fieldId: "33333333-3333-3333-3333-333333333333"
+                  cropId: "55555555-5555-5555-5555-555555555555"
+                  variety: "Фасоль Лопатка"
+                  seasonYear: 2026
+                  sowingDate: "2026-04-20"
+                  expectedHarvestDate: "2026-09-15"
+                  actualYieldT: null
+    post:
+      summary: Добавить посев
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fieldId, cropId, seasonYear, sowingDate]
+              properties:
+                fieldId:
+                  type: string
+                  format: uuid
+                cropId:
+                  type: string
+                  format: uuid
+                variety:
+                  type: string
+                  example: "Томск F1"
+                seasonYear:
+                  type: integer
+                  example: 2026
+                sowingDate:
+                  type: string
+                  format: date
+                  example: "2026-04-10"
+                expectedHarvestDate:
+                  type: string
+                  format: date
+                  example: "2026-08-20"
+      responses:
+        '201':
+          description: Посев добавлен
+        '400':
+          description: Дата сбора не может быть раньше даты посева
+        '422':
+          description: Культура не найдена (CROP_NOT_FOUND)
+
+  /api/v1/me/addresses:
+    get:
+      summary: Список сохраненных адресов доставки
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                - id: "66666666-6666-6666-6666-666666666666"
+                  settlementId: "22222222-2222-2222-2222-222222222222"
+                  street: "ул. Ленина"
+                  house: "15"
+                  comment: "У ворот склад"
+                  contactPhone: "+996555000000"
+                  isDefault: true
+    post:
+      summary: Создать адрес доставки
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settlementId, contactPhone]
+              properties:
+                settlementId:
+                  type: string
+                  format: uuid
+                street:
+                  type: string
+                  example: "ул. Жибек Жолу"
+                house:
+                  type: string
+                  example: "123"
+                comment:
+                  type: string
+                  example: "Кодовый замок 123"
+                contactPhone:
+                  type: string
+                  example: "+996555000000"
+                isDefault:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Адрес создан
+        '400':
+          description: Неверный формат телефона (PHONE_INVALID)

@@ -1,0 +1,140 @@
+openapi: 3.0.3
+info:
+  title: Apex Agro - Auth API
+  version: 1.0.0
+paths:
+  /api/v1/auth/otp/send:
+    post:
+      summary: Отправить 6-значный SMS-код
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+                  example: "+996555123456"
+      responses:
+        '202':
+          description: Код отправлен
+          content:
+            application/json:
+              example:
+                resendAfterSec: 60
+                expiresInSec: 300
+        '400':
+          description: Неверный формат номера
+          content:
+            application/problem+json:
+              example:
+                title: "Bad Request"
+                status: 400
+                code: "PHONE_INVALID"
+                detail: "Номер должен быть в формате +996XXXXXXXXX"
+        '429':
+          description: Превышены лимиты отправки
+          content:
+            application/problem+json:
+              example:
+                title: "Too Many Requests"
+                status: 429
+                code: "OTP_RESEND_TOO_EARLY"
+                detail: "Повторная отправка возможна через 45 сек"
+                retryAfterSec: 45
+
+  /api/v1/auth/otp/verify:
+    post:
+      summary: Проверить SMS-код и войти
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone:
+                  type: string
+                  example: "+996555123456"
+                code:
+                  type: string
+                  example: "123456"
+                device:
+                  type: string
+                  example: "iPhone 15 Pro, iOS 18"
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              example:
+                accessToken: "eyJhbGciOiJSUzI1NiIsIn..."
+                accessExpiresIn: 900
+                refreshToken: "d8c1e2f3-a4b5-6c7d-8e9f-0a1b2c3d4e5f"
+                isNew: false
+                user:
+                  id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+                  phone: "+996555123456"
+                  language: "ru"
+                  verificationLevel: "PHONE_VERIFIED"
+                  roles: ["SELLER"]
+        '400':
+          description: Неверный или просроченный код
+          content:
+            application/problem+json:
+              example:
+                title: "Bad Request"
+                status: 400
+                code: "OTP_INVALID"
+                detail: "Неверный проверочный код"
+                attemptsLeft: 2
+        '403':
+          description: Пользователь заблокирован
+          content:
+            application/problem+json:
+              example:
+                title: "Forbidden"
+                status: 403
+                code: "USER_BLOCKED"
+                detail: "Аккаунт заблокирован администратором"
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Ротация refresh-токена
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Новая пара токенов
+          content:
+            application/json:
+              example:
+                accessToken: "eyJhbGciOiJ..."
+                accessExpiresIn: 900
+                refreshToken: "f1e2d3c4-b5a6-7890-1234-56789abcdef0"
+        '401':
+          description: Токен недействителен или обнаружена попытка повторного использования
+          content:
+            application/problem+json:
+              example:
+                status: 401
+                code: "REFRESH_TOKEN_REUSED"
+                detail: "Refresh token has already been used. Session terminated."
+
+  /api/v1/auth/logout:
+    post:
+      summary: Выход с текущего устройства
+      responses:
+        '204':
+          description: Успешный выход

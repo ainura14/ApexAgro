@@ -82,6 +82,16 @@ management:
       percentiles-histogram:
         http.server.requests: true        # p95 для бюджетов производительности (BE3-58)
 
+  spring:
+    application:
+      name: agro-backend
+
+    security:
+      oauth2:
+        resourceserver:
+          jwt:
+            public-key-location: classpath:certs/public.pem
+
 # BE3-08: OpenAPI. Группа = модуль; спецификация модуля лежит в api/<module>.yaml
 springdoc:
   api-docs:
@@ -124,3 +134,5 @@ apexagro:
       log-codes: false
       fixed-code: "000000"
       test-numbers: []
+
+

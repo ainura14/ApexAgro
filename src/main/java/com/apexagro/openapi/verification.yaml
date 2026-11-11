@@ -1,0 +1,66 @@
+openapi: 3.0.3
+info:
+  title: Apex Agro - Verification API
+  version: 1.0.0
+paths:
+  /api/v1/me/verification:
+    post:
+      summary: Подать заявку на верификацию (ввод ПИН)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, pin, birthDate]
+              properties:
+                fullName:
+                  type: string
+                  example: "Усенов Асан Бейшенович"
+                pin:
+                  type: string
+                  description: "14 цифр персонального номера КР"
+                  example: "21505199001234"
+                birthDate:
+                  type: string
+                  format: date
+                  example: "1990-05-15"
+      responses:
+        '201':
+          description: Заявка принята
+          content:
+            application/json:
+              example:
+                id: "bbbbbbbb-cccc-dddd-eeee-ffffffffffff"
+                status: "PENDING"
+                submittedAt: "2026-11-10T14:30:00Z"
+        '400':
+          description: Ошибка валидации ПИН
+          content:
+            application/problem+json:
+              example:
+                status: 400
+                code: "PIN_INVALID"
+                detail: "ПИН должен содержать ровно 14 цифр"
+        '409':
+          description: Заявка уже на рассмотрении
+          content:
+            application/problem+json:
+              example:
+                status: 409
+                code: "VERIFICATION_ALREADY_PENDING"
+                detail: "Ваша заявка уже находится на проверке"
+
+    get:
+      summary: Проверить статус своей заявки (ПИН никогда не возвращается!)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Статус заявки
+          content:
+            application/json:
+              example:
+                status:

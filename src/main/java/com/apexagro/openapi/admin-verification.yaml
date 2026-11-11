@@ -1,0 +1,131 @@
+openapi: 3.0.3
+info:
+  title: Apex Agro - Admin Verification API
+  version: 1.0.0
+paths:
+  /api/v1/admin/verifications:
+    get:
+      summary: Очередь заявок на верификацию
+      description: Доступно только ролям MODERATOR и ADMIN. ПИН маскируется.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+            default: PENDING
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Страница заявок
+          content:
+            application/json:
+              example:
+                content:
+                  - id: "77777777-7777-7777-7777-777777777777"
+                    userId: "88888888-8888-8888-8888-888888888888"
+                    phone: "+996555000000"
+                    fullName: "Иванов Иван Иванович"
+                    birthDate: "1990-01-01"
+                    pinMasked: "**********0000"
+                    status: "PENDING"
+                    submittedAt: "2026-11-10T10:00:00Z"
+                totalElements: 1
+                totalPages: 1
+                page: 0
+                size: 20
+        '403':
+          description: Доступ запрещен (нет роли MODERATOR/ADMIN)
+
+  /api/v1/admin/verifications/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Получить карточку заявки с расшифрованным ПИН
+      description: Каждый вызов этого эндпоинта автоматически фиксируется в журнале audit.audit_log с действием PIN_VIEWED!
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные заявки
+          content:
+            application/json:
+              example:
+                id: "77777777-7777-7777-7777-777777777777"
+                userId: "88888888-8888-8888-8888-888888888888"
+                fullName: "Иванов Иван Иванович"
+                pin: "00000000000000"
+                birthDate: "1990-01-01"
+                status: "PENDING"
+                submittedAt: "2026-11-10T10:00:00Z"
+        '404':
+          description: Заявка не найдена
+
+  /api/v1/admin/verifications/{id}/approve:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Одобрить заявку
+      description: Переводит пользователя в статус IDENTIFIED и публикует событие UserIdentified (E-01)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Заявка одобрена
+        '409':
+          description: Заявка не находится в статусе PENDING (VERIFICATION_NOT_PENDING)
+
+  /api/v1/admin/verifications/{id}/reject:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      summary: Отклонить заявку
+      description: Публикует событие UserVerificationRejected (E-02). Поле reason обязательно.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                  example: "Некорректно указан персональный номер или дата рождения"
+      responses:
+        '200':
+          description: Заявка отклонена
+        '400':
+          description: Причина отклонения не заполнена
+        '409':
+          description: Заявка не в статусе PENDING
